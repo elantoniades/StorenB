@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { createClient } from '@/src/utils/supabase/server';
-import { Navbar } from '@/components/Navbar';
+import { Navbar } from '@/components/navbar/Navbar';
 import { Footer } from '@/components/Footer';
 
 const inter = Inter({ subsets: ['latin'] });

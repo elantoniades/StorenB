@@ -1,7 +1,7 @@
 "use client";
 
 import { SafeUser } from "@/types";
-import Container from "../Container";
+import Container from "../components/Container";
 import Logo from "./Logo";
 import Search from "./Search";
 import UserMenu from "./UserMenu";
