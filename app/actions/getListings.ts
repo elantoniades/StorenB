@@ -1,4 +1,7 @@
-import prisma from "@/lib/prismadb";
+'use server';
+
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export interface IListingsParams {
   userId?: string;
@@ -7,88 +10,35 @@ export interface IListingsParams {
   bathroomCount?: number;
   startDate?: string;
   endDate?: string;
-  locationValue?: string;
+  location?: string;
   category?: string;
 }
 
-export default async function getListings(params: IListingsParams) {
-  try {
-    const {
-      userId,
-      roomCount,
-      guestCount,
-      bathroomCount,
-      locationValue,
-      startDate,
-      endDate,
-      category,
-    } = params;
+export async function getListings(params: IListingsParams) {
+  const supabase = createServerComponentClient({ cookies });
 
-    let query: any = {};
+  const { userId, location, category } = params;
 
-    if (userId) {
-      query.userId = userId;
-    }
+  let query = supabase.from('spaces').select('*');
 
-    if (category) {
-      query.category = category;
-    }
-
-    if (roomCount) {
-      query.roomCount = {
-        gte: +roomCount,
-      };
-    }
-
-    if (guestCount) {
-      query.guestCount = {
-        gte: +guestCount,
-      };
-    }
-
-    if (bathroomCount) {
-      query.bathroomCount = {
-        gte: +bathroomCount,
-      };
-    }
-
-    if (locationValue) {
-      query.locationValue = locationValue;
-    }
-
-    if (startDate && endDate) {
-      query.NOT = {
-        reservations: {
-          some: {
-            OR: [
-              {
-                endDate: { gte: startDate },
-                startDate: { lte: startDate },
-              },
-              {
-                startDate: { lte: endDate },
-                endDate: { gte: endDate },
-              },
-            ],
-          },
-        },
-      };
-    }
-
-    const listing = await prisma.listing.findMany({
-      where: query,
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    const safeListings = listing.map((list) => ({
-      ...list,
-      createdAt: list.createdAt.toISOString(),
-    }));
-
-    return safeListings;
-  } catch (error: any) {
-    throw new Error(error.message);
+  if (userId) {
+    query = query.eq('owner_id', userId);
   }
+
+  if (location) {
+    query = query.ilike('location', `%${location}%`);
+  }
+
+  if (category) {
+    query = query.eq('category', category);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching listings:', error.message);
+    return [];
+  }
+
+  return data || [];
 }

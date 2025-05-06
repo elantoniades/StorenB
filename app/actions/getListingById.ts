@@ -1,37 +1,27 @@
-import prisma from "@/lib/prismadb";
+'use server';
 
-interface IParams {
-  listingId?: string;
-}
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
-export default async function getListingById(params: IParams) {
-  try {
-    const { listingId } = params;
+export default async function getListingById(listingId: string) {
+  const cookieStore = cookies();
 
-    const listing = await prisma.listing.findUnique({
-      where: {
-        id: listingId,
-      },
-      include: {
-        user: true,
-      },
-    });
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: () => cookieStore }
+  );
 
-    if (!listing) {
-      return null;
-    }
+  const { data, error } = await supabase
+    .from('spaces')
+    .select('*')
+    .eq('id', listingId)
+    .single();
 
-    return {
-      ...listing,
-      createdAt: listing.createdAt.toString(),
-      user: {
-        ...listing.user,
-        createdAt: listing.user.createdAt.toString(),
-        updatedAt: listing.user.updatedAt.toString(),
-        emailVerified: listing.user.emailVerified?.toString() || null,
-      },
-    };
-  } catch (error: any) {
-    throw new Error(error.message);
+  if (error) {
+    console.error('Error fetching listing by id:', error.message);
+    return null;
   }
+
+  return data;
 }

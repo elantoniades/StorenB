@@ -1,39 +1,16 @@
-import prisma from "@/lib/prismadb";
-import { authOptions } from "@/pages/api/auth/[...nextauth]";
-import { getServerSession } from "next-auth/next";
+'use server';
 
-export async function getSession() {
-  return await getServerSession(authOptions);
-}
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
-export default async function getCurrentUser() {
-  try {
-    const session = await getSession();
+export async function getCurrentUser() {
+  const supabase = createServerComponentClient({ cookies });
 
-    if (!session?.user?.email) {
-      return null;
-    }
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-    const currentUser = await prisma.user.findUnique({
-      where: {
-        email: session.user.email as string,
-      },
-    });
+  const user = session?.user;
 
-    if (!currentUser) {
-      return null;
-    }
-
-    return {
-      ...currentUser,
-      createdAt: currentUser.createdAt.toISOString(),
-      updatedAt: currentUser.updatedAt.toISOString(),
-      emailVerified: currentUser.emailVerified?.toISOString() || null,
-    };
-  } catch (error: any) {
-    console.log(
-      "🚀 ~ file: getCurrentUser.ts:13 ~ getCurrentUser ~ error:",
-      error
-    );
-  }
+  return user ? { email: user.email, id: user.id } : null;
 }

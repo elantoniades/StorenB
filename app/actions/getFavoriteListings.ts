@@ -1,29 +1,40 @@
-import prisma from "@/lib/prismadb";
-import getCurrentUser from "./getCurrentUser";
+'use server';
 
-export default async function getFavoriteListings() {
-  try {
-    const currentUser = await getCurrentUser();
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
-    if (!currentUser) {
-      return [];
-    }
+export default async function getFavoriteListings(userId: string) {
+  const cookieStore = cookies();
 
-    const favorites = await prisma.listing.findMany({
-      where: {
-        id: {
-          in: [...(currentUser.favoriteIds || [])],
-        },
-      },
-    });
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: () => cookieStore }
+  );
 
-    const safeFavorite = favorites.map((favorite) => ({
-      ...favorite,
-      createdAt: favorite.createdAt.toString(),
-    }));
+  // 1. Πάρε όλα τα favorite space_ids για τον χρήστη
+  const { data: favorites, error: favError } = await supabase
+    .from('favorites')
+    .select('space_id')
+    .eq('user_id', userId);
 
-    return safeFavorite;
-  } catch (error: any) {
-    throw new Error(error.message);
+  if (favError || !favorites || favorites.length === 0) {
+    console.error('Error fetching favorites:', favError?.message);
+    return [];
   }
+
+  const spaceIds = favorites.map((fav) => fav.space_id);
+
+  // 2. Φέρε τις αντίστοιχες καταχωρίσεις από τον πίνακα spaces
+  const { data: listings, error } = await supabase
+    .from('spaces')
+    .select('*')
+    .in('id', spaceIds);
+
+  if (error) {
+    console.error('Error fetching listings:', error.message);
+    return [];
+  }
+
+  return listings || [];
 }

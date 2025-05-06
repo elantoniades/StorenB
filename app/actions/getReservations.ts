@@ -1,52 +1,84 @@
-import prisma from "@/lib/prismadb";
+'use server';
+
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 interface IParams {
-  listingId?: string;
+  spaceId?: string;
   userId?: string;
-  authorId?: string;
+  hostId?: string;
 }
 
-export default async function getReservation(params: IParams) {
-  try {
-    const { listingId, userId, authorId } = params;
+export default async function getReservations(params: IParams) {
+  const cookieStore = cookies();
 
-    const query: any = {};
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: () => cookieStore }
+  );
 
-    if (listingId) {
-      query.listingId = listingId;
+  const { spaceId, userId, hostId } = params;
+
+  // Αν ζητείται hostId, φέρε όλα τα listings του host
+  if (hostId) {
+    const { data: hostSpaces, error: hostErr } = await supabase
+      .from('spaces')
+      .select('id')
+      .eq('owner_id', hostId);
+
+    if (hostErr || !hostSpaces) {
+      console.error('Error fetching host spaces:', hostErr?.message);
+      return [];
     }
 
-    if (userId) {
-      query.userId = userId;
+    const spaceIds = hostSpaces.map((s) => s.id);
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .in('space_id', spaceIds)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching reservations for host:', error.message);
+      return [];
     }
 
-    if (authorId) {
-      query.listing = { userId: authorId };
-    }
-
-    const reservation = await prisma.reservation.findMany({
-      where: query,
-      include: {
-        listing: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    const safeReservations = reservation.map((reservation) => ({
-      ...reservation,
-      createdAt: reservation.createdAt.toISOString(),
-      startDate: reservation.startDate.toISOString(),
-      endDate: reservation.endDate.toISOString(),
-      listing: {
-        ...reservation.listing,
-        createdAt: reservation.listing.createdAt.toISOString(),
-      },
-    }));
-
-    return safeReservations;
-  } catch (error: any) {
-    throw new Error(error.message);
+    return data || [];
   }
+
+  // Αν ζητείται spaceId
+  if (spaceId) {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('space_id', spaceId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching reservations for space:', error.message);
+      return [];
+    }
+
+    return data || [];
+  }
+
+  // Αν ζητείται userId
+  if (userId) {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('renter_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching reservations for user:', error.message);
+      return [];
+    }
+
+    return data || [];
+  }
+
+  return [];
 }
