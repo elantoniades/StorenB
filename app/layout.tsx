@@ -1,45 +1,35 @@
-import ClientOnly from "@/components/ClientOnly";
-import Footer from "@/components/Footer";
-import ToastContainerBar from "@/components/ToastContainerBar";
-import LoginModal from "@/components/models/LoginModal";
-import RegisterModal from "@/components/models/RegisterModal";
-import RentModal from "@/components/models/RentModal";
-import SearchModal from "@/components/models/SearchModal";
-import Navbar from "@/components/navbar/Navbar";
-import { Nunito } from "next/font/google";
-import "../styles/globals.css";
-import { getCurrentUser } from './actions/getCurrentUser';
+import '../styles/globals.css';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import { cookies } from 'next/headers';
+import { createClient } from '@/src/utils/supabase/server';
+import { Navbar } from '@/components/Navbar';
+import { Footer } from '@/components/Footer';
 
-export const metadata = {
-  title: "Airbnb Clone",
-  description: "Airbnb Clone",
-  icons: "https://www.seekpng.com/png/full/957-9571167_airbnb-png.png",
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: "Store’nB | Φύλαξέ το κι ησύχασε",
+  description: 'Η πρώτη πλατφόρμα διαμοιραζόμενης αποθήκευσης στην Ελλάδα. Βρες χώρο κοντά σου ή κέρδισε χρήματα νοικιάζοντας τον δικό σου!',
 };
-
-const font = Nunito({
-  subsets: ["latin"],
-});
 
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const currentUser = await getCurrentUser();
+  const cookieStore = cookies();
+  const supabase = await createClient(cookieStore);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   return (
-    <html lang="en">
-      <body className={font.className}>
-        <ClientOnly>
-          <ToastContainerBar />
-          <SearchModal />
-          <RegisterModal />
-          <LoginModal />
-          <RentModal />
-          <Navbar currentUser={currentUser} />
-        </ClientOnly>
-        <div className="pb-20 pt-28">{children}</div>
-        <Footer />
+    <html lang="el">
+      <body className={inter.className}>
+      <Navbar currentUser={user} />
+      <main>{children}</main>
+      <Footer />
       </body>
     </html>
   );
