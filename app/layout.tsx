@@ -1,11 +1,13 @@
-import '../styles/globals.css';
+import '@/styles/globals.css';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { createClient } from '@/src/utils/supabase/server';
-import { Navbar } from '@/components/navbar/Navbar';
+import Navbar  from '@/components/navbar/Navbar';
 import { Footer } from '@/components/Footer';
+import { getCurrentUser } from '@/app/actions/getCurrentUser';
 
+const user = await getCurrentUser();
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
