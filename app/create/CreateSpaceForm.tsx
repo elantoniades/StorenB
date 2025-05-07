@@ -1,156 +1,181 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import { toast } from "react-hot-toast";
 
-export default function CreateSpaceForm() {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
-  const [size, setSize] = useState('');
-  const [access, setAccess] = useState('');
-  const [security, setSecurity] = useState('');
-  const [isIndoor, setIsIndoor] = useState(true);
-  const [location, setLocation] = useState('');
-  const [loading, setLoading] = useState(false);
+import Heading from "@/components/Heading";
+import CategoryInput from "@/components/inputs/CategoryInput";
+import Counter from "@/components/inputs/Counter";
+import CountrySelect from "@/components/inputs/CountrySelect";
+import ImageUpload from "@/components/inputs/ImageUpload";
+import Input from "@/components/inputs/Input";
+import { categories } from "@/components/navbar/Categories";
 
+import useFormSteps from "@/hooks/useFormSteps";
+import { createSpace } from "@/actions/spaces";
+
+import { DateRange } from "react-date-range";
+import { Range } from "react-date-range";
+import { addDays } from "date-fns";
+
+enum STEPS {
+  CATEGORY = 0,
+  LOCATION = 1,
+  IMAGES = 2,
+  AVAILABILITY = 3,
+  DETAILS = 4,
+}
+
+const Map = dynamic(() => import("@/components/Map"), { ssr: false });
+
+const CreateSpaceForm = () => {
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const {
+    step,
+    onNext,
+    onBack,
+    isFirstStep,
+    isLastStep,
+    setStep,
+  } = useFormSteps();
 
-    const user = (await supabase.auth.getUser()).data.user;
+  const [category, setCategory] = useState<string>('');
+  const [location, setLocation] = useState<any>(null);
+  const [imageSrc, setImageSrc] = useState<string>('');
+  const [dateRange, setDateRange] = useState<Range>({
+    startDate: new Date(),
+    endDate: addDays(new Date(), 1),
+    key: 'selection',
+  });
+  const [title, setTitle] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [minDays, setMinDays] = useState<number>(1);
 
-    if (!user) {
-      alert('Πρέπει να είστε συνδεδεμένος για να καταχωρίσετε χώρο.');
-      setLoading(false);
-      return;
-    }
-
-    const { error } = await supabase.from('spaces').insert({
-      user_id: user.id,
-      title,
-      description,
-      price: parseFloat(price),
-      size: parseFloat(size),
-      access,
-      security,
-      is_indoor: isIndoor,
-      location
-    });
-
-    setLoading(false);
-
-    if (error) {
-      console.error('Insert error:', error.message);
-      alert('Αποτυχία καταχώρισης. Δοκιμάστε ξανά.');
-    } else {
-      alert('Ο χώρος καταχωρήθηκε με επιτυχία!');
-      router.push('/account');
+  const onSubmit = async () => {
+    try {
+      await createSpace({
+        category,
+        location,
+        imageSrc,
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+        title,
+        description,
+        minDays,
+      });
+      toast.success("Space created!");
+      router.refresh();
+      setStep(STEPS.CATEGORY);
+    } catch (error) {
+      toast.error("Something went wrong.");
     }
   };
 
+  let bodyContent;
+
+  switch (step) {
+    case STEPS.CATEGORY:
+      bodyContent = (
+        <div className="flex flex-col gap-8">
+          <Heading
+            title="Κατηγορία Χώρου"
+            subtitle="Διάλεξε την κατηγορία που ταιριάζει στο χώρο σου"
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto">
+            {categories.map((item) => (
+              <div key={item.label} className="col-span-1">
+                <CategoryInput
+                  onClick={(category) => setCategory(category)}
+                  selected={category === item.label}
+                  label={item.label}
+                  icon={item.icon}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+      break;
+    case STEPS.LOCATION:
+      bodyContent = (
+        <div className="flex flex-col gap-8">
+          <Heading title="Τοποθεσία" subtitle="Πού βρίσκεται ο χώρος σου;" />
+          <CountrySelect value={location} onChange={(value) => setLocation(value)} />
+          <Map center={location?.latlng} />
+        </div>
+      );
+      break;
+    case STEPS.IMAGES:
+      bodyContent = (
+        <div className="flex flex-col gap-8">
+          <Heading title="Φωτογραφίες" subtitle="Πρόσθεσε φωτογραφία του χώρου σου" />
+          <ImageUpload value={imageSrc} onChange={(value) => setImageSrc(value)} />
+        </div>
+      );
+      break;
+    case STEPS.AVAILABILITY:
+      bodyContent = (
+        <div className="flex flex-col gap-8">
+          <Heading title="Διαθεσιμότητα" subtitle="Επίλεξε τις ημερομηνίες διάθεσης του χώρου σου" />
+          <DateRange
+            ranges={[dateRange]}
+            onChange={(item) => setDateRange(item.selection)}
+            minDate={new Date()}
+            rangeColors={["#262626"]}
+          />
+        </div>
+      );
+      break;
+    case STEPS.DETAILS:
+      bodyContent = (
+        <div className="flex flex-col gap-8">
+          <Heading title="Λεπτομέρειες" subtitle="Δώσε έναν τίτλο και μια περιγραφή" />
+          <Input
+            id="title"
+            label="Τίτλος"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <Input
+            id="description"
+            label="Περιγραφή"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <Counter
+            title="Ελάχιστη Διάρκεια Κράτησης"
+            subtitle="Σε ημέρες"
+            value={minDays}
+            onChange={(value) => setMinDays(value)}
+          />
+        </div>
+      );
+      break;
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-6 p-6 bg-white rounded-xl shadow">
-      <h2 className="text-2xl font-bold text-center">Καταχώρισε τον αποθηκευτικό σου χώρο</h2>
-
-      <div>
-        <label className="block font-semibold mb-1">Τίτλος</label>
-        <input
-          type="text"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          required
-          className="w-full p-2 border rounded"
-          placeholder="Π.χ. Υπόγειος χώρος 20τμ στο Μαρούσι"
-        />
+    <div className="max-w-screen-lg mx-auto">
+      <div className="pt-8">
+        {bodyContent}
       </div>
-
-      <div>
-        <label className="block font-semibold mb-1">Περιγραφή</label>
-        <textarea
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          required
-          className="w-full p-2 border rounded"
-          rows={3}
-          placeholder="Περιέγραψε τον χώρο σου..."
-        />
+      <div className="flex justify-between mt-8">
+        {!isFirstStep && (
+          <button onClick={onBack} className="px-4 py-2 bg-gray-200 rounded-md">
+            Πίσω
+          </button>
+        )}
+        <button
+          onClick={isLastStep ? onSubmit : onNext}
+          className="px-4 py-2 bg-black text-white rounded-md"
+        >
+          {isLastStep ? "Καταχώριση" : "Επόμενο"}
+        </button>
       </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block font-semibold mb-1">Τιμή / μήνα (€)</label>
-          <input
-            type="number"
-            value={price}
-            onChange={e => setPrice(e.target.value)}
-            required
-            className="w-full p-2 border rounded"
-          />
-        </div>
-        <div>
-          <label className="block font-semibold mb-1">Εμβαδόν (m²)</label>
-          <input
-            type="number"
-            value={size}
-            onChange={e => setSize(e.target.value)}
-            required
-            className="w-full p-2 border rounded"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block font-semibold mb-1">Πρόσβαση</label>
-        <input
-          type="text"
-          value={access}
-          onChange={e => setAccess(e.target.value)}
-          required
-          className="w-full p-2 border rounded"
-          placeholder="Π.χ. 24/7 με κλειδί, ώρες γραφείου κ.λπ."
-        />
-      </div>
-
-      <div>
-        <label className="block font-semibold mb-1">Ασφάλεια</label>
-        <input
-          type="text"
-          value={security}
-          onChange={e => setSecurity(e.target.value)}
-          required
-          className="w-full p-2 border rounded"
-          placeholder="Π.χ. Κάμερες, συναγερμός..."
-        />
-      </div>
-
-      <div className="flex items-center gap-2">
-        <input type="checkbox" checked={isIndoor} onChange={() => setIsIndoor(!isIndoor)} />
-        <label>Εσωτερικός χώρος (αν όχι, θεωρείται εξωτερικός)</label>
-      </div>
-
-      <div>
-        <label className="block font-semibold mb-1">Τοποθεσία</label>
-        <input
-          type="text"
-          value={location}
-          onChange={e => setLocation(e.target.value)}
-          required
-          className="w-full p-2 border rounded"
-          placeholder="Οδός, περιοχή, ΤΚ"
-        />
-      </div>
-
-      <button
-        type="submit"
-        className="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700"
-        disabled={loading}
-      >
-        {loading ? 'Καταχώριση...' : 'Καταχώριση Χώρου'}
-      </button>
-    </form>
+    </div>
   );
-}
+};
+
+export default CreateSpaceForm;
