@@ -3,16 +3,16 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { createClient } from '@/src/utils/supabase/server';
-import Navbar  from '@/components/navbar/Navbar';
+import Navbar from '@/components/navbar/Navbar';
 import { Footer } from '@/components/Footer';
 import { getCurrentUser } from '@/app/actions/getCurrentUser';
 
-const user = await getCurrentUser();
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: "Store’nB | Φύλαξέ το κι ησύχασε",
-  description: 'Η πρώτη πλατφόρμα διαμοιραζόμενης αποθήκευσης στην Ελλάδα. Βρες χώρο κοντά σου ή κέρδισε χρήματα νοικιάζοντας τον δικό σου!',
+  description:
+    'Η πρώτη πλατφόρμα διαμοιραζόμενης αποθήκευσης στην Ελλάδα. Βρες χώρο κοντά σου ή κέρδισε χρήματα νοικιάζοντας τον δικό σου!',
 };
 
 export default async function RootLayout({
@@ -29,9 +29,9 @@ export default async function RootLayout({
   return (
     <html lang="el">
       <body className={inter.className}>
-      <Navbar currentUser={user} />
-      <main>{children}</main>
-      <Footer />
+        <Navbar currentUser={user} />
+        <main>{children}</main>
+        <Footer />
       </body>
     </html>
   );
