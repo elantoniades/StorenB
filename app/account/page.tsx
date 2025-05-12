@@ -1,47 +1,77 @@
-import { createClient } from '@/utils/supabase/server';
-import { cookies } from 'next/headers';
+import { createClient } from "@/utils/supabase/server";
+import { cookies } from "next/headers";
+import { cancelReservation } from "@/app/actions/cancelReservation";
+import { format } from "date-fns";
 
-export default async function AccountPage() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
-
+export default async function MyReservations() {
+  const supabase = createClient(cookies());
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return <p className="text-center py-10">Πρέπει να είστε συνδεδεμένος.</p>;
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-semibold">Πρέπει να συνδεθείς για να δεις τις κρατήσεις σου.</h1>
+      </div>
+    );
   }
 
-  const { data: spaces, error } = await supabase
-    .from('spaces')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
+  const { data: reservations, error } = await supabase
+    .from("reservations")
+    .select("id, start_date, end_date, created_at, space_id, spaces(name, location)")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
 
   if (error) {
-    return <p className="text-center py-10 text-red-600">Σφάλμα: {error.message}</p>;
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-semibold text-red-600">Αποτυχία ανάκτησης κρατήσεων.</h1>
+      </div>
+    );
+  }
+
+  if (!reservations || reservations.length === 0) {
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl font-semibold">Δεν έχεις ενεργές κρατήσεις.</h1>
+      </div>
+    );
   }
 
   return (
-    <main className="max-w-4xl mx-auto px-6 py-10">
-      <h1 className="text-3xl font-bold mb-6">Οι χώροι μου</h1>
-
-      {spaces.length === 0 ? (
-        <p className="text-gray-600">Δεν έχετε καταχωρίσει ακόμη κάποιον χώρο.</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {spaces.map((space) => (
-            <div key={space.id} className="border p-4 rounded shadow bg-white">
-              <h2 className="text-xl font-semibold">{space.title}</h2>
-              <p className="text-gray-600 mb-2">{space.description}</p>
-              <p><strong>Τιμή:</strong> {space.price}€/μήνα</p>
-              <p><strong>Εμβαδόν:</strong> {space.size} m²</p>
-              <p className="text-sm text-gray-400 mt-2">Καταχωρήθηκε: {new Date(space.created_at).toLocaleDateString()}</p>
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold mb-6">Οι κρατήσεις μου</h1>
+      <ul className="space-y-4">
+        {reservations.map((res: any) => (
+          <li
+            key={res.id}
+            className="border p-4 rounded-md shadow-sm flex justify-between items-center"
+          >
+            <div>
+              <p className="font-semibold">
+                Χώρος: {res.spaces?.name || "Άγνωστος"} – {res.spaces?.location || "Τοποθεσία;"}
+              </p>
+              <p className="text-sm text-gray-600">
+                Από: {format(new Date(res.start_date), "dd/MM/yyyy")} έως{" "}
+                {format(new Date(res.end_date), "dd/MM/yyyy")}
+              </p>
+              <p className="text-xs text-gray-400">
+                Ημερομηνία κράτησης: {format(new Date(res.created_at), "dd/MM/yyyy")}
+              </p>
             </div>
-          ))}
-        </div>
-      )}
-    </main>
+            <form action={cancelReservation}>
+              <input type="hidden" name="reservationId" value={res.id} />
+              <button
+                type="submit"
+                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
+              >
+                Ακύρωση
+              </button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

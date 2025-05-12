@@ -1,45 +1,61 @@
-import ClientOnly from "@/components/ClientOnly";
-import EmptyState from "@/components/EmptyState";
-import React from "react";
-import getCurrentUser from "../actions/getCurrentUser";
-import getReservation from "../actions/getReservations";
-import ReservationsClient from "./ReservationsClient";
+"use client";
 
-type Props = {};
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getCurrentUser } from "@/app/actions/getCurrentUser";
+import { createClient } from "@/utils/supabase/server";
+import Container from "@/components/Container";
+import Heading from "@/components/Heading";
+import ReservationCard from "@/components/reservations/ReservationCard";
 
-const ReservationsPage = async (props: Props) => {
-  const currentUser = await getCurrentUser();
+const ReservationsPage = () => {
+  const router = useRouter();
+  const [reservations, setReservations] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!currentUser) {
-    return (
-      <ClientOnly>
-        <EmptyState title="Unauthorized" subtitle="Please login" />
-      </ClientOnly>
-    );
-  }
+  useEffect(() => {
+    const fetchReservations = async () => {
+      const supabase = createClient();
+      const user = await getCurrentUser();
 
-  const reservations = await getReservation({
-    authorId: currentUser.id,
-  });
+      if (!user) return;
 
-  if (reservations.length === 0) {
-    return (
-      <ClientOnly>
-        <EmptyState
-          title="No Reservation found"
-          subtitle="Looks like you have no reservations on your properties."
-        />
-      </ClientOnly>
-    );
-  }
+      const { data, error } = await supabase
+        .from("reservations")
+        .select("*, space:spaces(*), user:users(*)")
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error(error);
+      } else {
+        setReservations(data);
+      }
+
+      setLoading(false);
+    };
+
+    fetchReservations();
+  }, []);
 
   return (
-    <ClientOnly>
-      <ReservationsClient
-        reservations={reservations}
-        currentUser={currentUser}
-      />
-    </ClientOnly>
+    <Container>
+      <Heading title="Οι κρατήσεις μου" subtitle="Διαχειρίσου τις κρατήσεις σου εύκολα." />
+      {loading ? (
+        <p>Φόρτωση...</p>
+      ) : reservations.length === 0 ? (
+        <p>Δεν υπάρχουν κρατήσεις ακόμα.</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {reservations.map((reservation: any) => (
+            <ReservationCard
+              key={reservation.id}
+              reservation={reservation}
+              onCancel={() => console.log("Cancel", reservation.id)}
+            />
+          ))}
+        </div>
+      )}
+    </Container>
   );
 };
 

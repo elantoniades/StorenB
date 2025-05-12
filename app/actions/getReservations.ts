@@ -1,84 +1,31 @@
-'use server';
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+export async function getHostReservations() {
+  const supabase = createServerComponentClient({ cookies });
 
-interface IParams {
-  spaceId?: string;
-  userId?: string;
-  hostId?: string;
-}
+  // Βρες τον current user (Host)
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-export default async function getReservations(params: IParams) {
-  const cookieStore = cookies();
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: () => cookieStore }
-  );
-
-  const { spaceId, userId, hostId } = params;
-
-  // Αν ζητείται hostId, φέρε όλα τα listings του host
-  if (hostId) {
-    const { data: hostSpaces, error: hostErr } = await supabase
-      .from('spaces')
-      .select('id')
-      .eq('owner_id', hostId);
-
-    if (hostErr || !hostSpaces) {
-      console.error('Error fetching host spaces:', hostErr?.message);
-      return [];
-    }
-
-    const spaceIds = hostSpaces.map((s) => s.id);
-
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .in('space_id', spaceIds)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching reservations for host:', error.message);
-      return [];
-    }
-
-    return data || [];
+  if (userError || !user) {
+    console.error("Host not authenticated", userError);
+    return [];
   }
 
-  // Αν ζητείται spaceId
-  if (spaceId) {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('space_id', spaceId)
-      .order('created_at', { ascending: false });
+  // Φέρε τις κρατήσεις για τους χώρους που έχει ανεβάσει ο Host
+  const { data: reservations, error: reservationsError } = await supabase
+    .from("reservations")
+    .select("*, space_id(*), user_id(*)")
+    .eq("space_id.owner_id", user.id) // μόνο για χώρους που ανήκουν στον host
+    .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error('Error fetching reservations for space:', error.message);
-      return [];
-    }
-
-    return data || [];
+  if (reservationsError) {
+    console.error("Failed to fetch host reservations", reservationsError);
+    return [];
   }
 
-  // Αν ζητείται userId
-  if (userId) {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('renter_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching reservations for user:', error.message);
-      return [];
-    }
-
-    return data || [];
-  }
-
-  return [];
+  return reservations;
 }
