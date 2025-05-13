@@ -1,14 +1,23 @@
-import { supabase } from './supabaseClient';
+'use client';
 
-export async function uploadImage(file: File, path: string) {
-  const { data, error } = await supabase.storage
-    .from('spaces')
-    .upload(path, file, {
-      cacheControl: '3600',
-      upsert: true,
-    });
+import { createClient } from '@/src/utils/supabase/client';
 
-  if (error) throw error;
+export const uploadImage = async (file: File): Promise<string | null> => {
+  const supabase = createClient();
 
-  return supabase.storage.from('spaces').getPublicUrl(data.path).data.publicUrl;
-}
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}.${fileExt}`;
+  const filePath = `public/${fileName}`;
+
+  const { error } = await supabase.storage
+    .from('images')
+    .upload(filePath, file);
+
+  if (error) {
+    console.error('Image upload error:', error);
+    return null;
+  }
+
+  const { data } = supabase.storage.from('images').getPublicUrl(filePath);
+  return data.publicUrl;
+};

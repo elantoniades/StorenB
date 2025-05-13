@@ -2,7 +2,7 @@
 
 'use server';
 
-import { createServerClient } from '@/utils/supabase/server';
+import { createServerClient } from '@/src/utils/supabase/server';
 import { cookies } from 'next/headers';
 
 interface ReservationParams {

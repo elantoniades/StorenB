@@ -5,7 +5,6 @@ import { cookies } from 'next/headers';
 import { createClient } from '@/src/utils/supabase/server';
 import Navbar from '@/components/navbar/Navbar';
 import { Footer } from '@/components/Footer';
-import { getCurrentUser } from '@/app/actions/getCurrentUser';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -30,7 +29,9 @@ export default async function RootLayout({
     <html lang="el">
       <body className={inter.className}>
         <Navbar currentUser={user} />
-        <main>{children}</main>
+        <div className="pt-32 px-4 md:pt-36 lg:pt-40"> {/* ➕ Καλύτερη υποστήριξη για όλα τα screen sizes */}
+          <main>{children}</main>
+        </div>
         <Footer />
       </body>
     </html>

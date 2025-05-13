@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { Upload, Loader2, X } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/src/utils/supabase/client";
 
 interface ImageUploadSupabaseProps {
   value: string[];
   onChange: (value: string[]) => void;
 }
-
+const supabase = createClient();
 const ImageUploadSupabase: React.FC<ImageUploadSupabaseProps> = ({
   value,
   onChange,

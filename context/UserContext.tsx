@@ -1,35 +1,52 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { Session, User } from '@supabase/supabase-js';
+import { createClient } from '@/src/utils/supabase/client';
 
-type UserContextType = {
-  user: { email: string } | null;
-};
+interface UserContextType {
+  user: User | null;
+  isLoading: boolean;
+}
 
-const UserContext = createContext<UserContextType>({ user: null });
+const UserContext = createContext<UserContextType>({
+  user: null,
+  isLoading: true,
+});
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<{ email: string } | null>(null);
+export const UserProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClient();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const sessionUser = data.session?.user;
-      if (sessionUser?.email) setUser({ email: sessionUser.email });
-    });
+    const getUserSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    };
+
+    getUserSession();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      const authUser = session?.user;
-      if (authUser?.email) setUser({ email: authUser.email });
-      else setUser(null);
+      setUser(session?.user ?? null);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
 
-  return <UserContext.Provider value={{ user }}>{children}</UserContext.Provider>;
-}
+  return (
+    <UserContext.Provider value={{ user, isLoading }}>
+      {children}
+    </UserContext.Provider>
+  );
+};
 
 export const useUser = () => useContext(UserContext);

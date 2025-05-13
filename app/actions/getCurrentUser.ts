@@ -1,14 +1,20 @@
-'use server';
+'use server'
 
-import { cookies } from 'next/headers';
-import { createClient } from '@/src/utils/supabase/server';
+import { cookies } from 'next/headers'
+import { createClient } from '@/src/utils/supabase/server'
 
-export async function getCurrentUser() {
-  const supabase = await createClient(cookies());
+export const getCurrentUser = async () => {
+  const supabase = createClient(cookies())
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+    error,
+  } = await supabase.auth.getUser()
 
-  return user;
+  if (error || !user) return null
+
+  return {
+    id: user.id,
+    email: user.email,
+  }
 }
