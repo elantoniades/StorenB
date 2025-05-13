@@ -44,7 +44,7 @@ export default function LoginPage() {
 
   return (
     <div className="max-w-md mx-auto mt-20 p-6 border rounded shadow">
-      <h1 className="text-2xl font-bold mb-4">Σύνδεση</h1>
+      <h1 className="text-2xl font-bold mb-4">Login</h1>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input
@@ -58,7 +58,7 @@ export default function LoginPage() {
         />
         <Input
           id="password"
-          label="Κωδικός"
+          label="Password"
           type="password"
           disabled={loading}
           required
